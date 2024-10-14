@@ -1,0 +1,44 @@
+---
+title: "Quarto report"
+jupyter: "python3"
+format:
+  html:
+    theme:
+          light: flatly
+          dark: darkly
+    toc: true
+---
+
+My first Python in Quarto report!
+
+## Data loading
+
+Table @tbl-iris presents data on the Iris dataset.
+
+```{python}
+#| echo: false
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+
+
+```{python}
+#| code-fold: true
+#| tbl-cap: The Iris dataset
+#| label: tbl-iris
+df = pd.read_csv("./iris_r.csv")
+df
+```
+
+## Plots 
+
+```{python}
+#| label: fig-variety-histogram
+#| fig-cap: Histogram of sepal lengths
+#| fig-align: center
+#| code-fold: true
+df.groupby("variety")["sepal.length"].hist(alpha=0.5, legend=True)
+plt.show()
+```
+
+Cool! We've created @fig-variety-histogram to learn more about iris sepal lengths distribution, using data from @tbl-iris.

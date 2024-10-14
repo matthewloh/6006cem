@@ -1,0 +1,96 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Quarto report\"\n",
+        "jupyter: \"python3\"\n",
+        "format:\n",
+        "  html:\n",
+        "    theme:\n",
+        "          light: flatly\n",
+        "          dark: darkly\n",
+        "    toc: true\n",
+        "---\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        "My first Python in Quarto report!\n",
+        "\n",
+        "## Data loading\n",
+        "\n",
+        "Table @tbl-iris presents data on the Iris dataset.\n"
+      ],
+      "id": "01cfbe56"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt"
+      ],
+      "id": "311154b1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| code-fold: true\n",
+        "#| tbl-cap: The Iris dataset\n",
+        "#| label: tbl-iris\n",
+        "df = pd.read_csv(\"./iris_r.csv\")\n",
+        "df"
+      ],
+      "id": "tbl-iris",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Plots \n"
+      ],
+      "id": "6907bdc6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| label: fig-variety-histogram\n",
+        "#| fig-cap: Histogram of sepal lengths\n",
+        "#| fig-align: center\n",
+        "#| code-fold: true\n",
+        "df.groupby(\"variety\")[\"sepal.length\"].hist(alpha=0.5, legend=True)\n",
+        "plt.show()"
+      ],
+      "id": "fig-variety-histogram",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Cool! We've created @fig-variety-histogram to learn more about iris sepal lengths distribution, using data from @tbl-iris."
+      ],
+      "id": "0984a802"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
