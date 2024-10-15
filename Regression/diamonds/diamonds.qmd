@@ -1,0 +1,510 @@
+---
+title: "Diamond Prices Regression Task"
+format:
+  pdf:
+    toc: true
+    colorlinks: true
+jupyter: python3
+author: "Matthew Loh"
+---
+
+# Imports
+```{python}
+# for data analysis, cleaning and exploration
+import pandas as pd
+# for numerical operations
+import numpy as np
+# for data visualization
+import matplotlib.pyplot as plt
+# for statiscal visualization
+import seaborn as sns
+# for feature selection
+from sklearn.feature_selection import mutual_info_regression
+# split train and test data
+from sklearn.model_selection import train_test_split
+# normalize data
+from sklearn.preprocessing import StandardScaler
+# linear regression model
+from sklearn.linear_model import LinearRegression
+# regularization models
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+# hyperparameter tuning
+from sklearn.model_selection import GridSearchCV
+# model evaluation
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+# random forest model
+from sklearn.ensemble import RandomForestRegressor                              # random forest model
+```
+
+# Load Data
+```{python}
+# load data
+diamonds = pd.read_csv('diamonds.csv')
+# display the first 5 rows of the dataframe
+diamonds.head()
+```
+
+# About Dataset
+## Context
+
+This classic dataset contains the prices and other attributes of almost 54,000 diamonds. It's a great dataset for beginners learning to work with data analysis and visualization.
+## Content
+
+- price price in US dollars (\$326--\$18,823)
+- carat weight of the diamond (0.2--5.01)
+- cut quality of the cut (Fair, Good, Very Good, Premium, Ideal)
+- color diamond colour, from J (worst) to D (best)
+- clarity a measurement of how clear the diamond is (I1 (worst), SI2, SI1, VS2, VS1, VVS2, VVS1, IF (best))
+- x length in mm (0--10.74)
+- y width in mm (0--58.9)
+- z depth in mm (0--31.8)
+- depth total depth percentage = z / mean(x, y) = 2 * z / (x + y) (43--79)
+- table width of top of diamond relative to widest point (43--95)
+
+# Data Preprocessing
+
+## Check for Missing Values
+```{python}
+# check for missing values
+diamonds.isnull().sum()
+```
+
+## Check for Duplicates
+```{python}
+# check for duplicates
+diamonds.duplicated().sum()
+```
+
+## Check for Outliers
+```{python}
+# check for outliers
+diamonds.describe()
+```
+
+## Check for Categorical Data
+```{python}
+# check for categorical data  
+diamonds.select_dtypes(include=['object']).columns
+```
+
+## Check for Numerical Data
+```{python}
+# check for numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).columns
+```
+
+## Check for Missing Values in Numerical Data
+```{python}
+# check for missing values in numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).isnull().sum()
+```
+
+## Check for Missing Values in Categorical Data
+```{python}
+# check for missing values in categorical data    
+diamonds.select_dtypes(include=['object']).isnull().sum()
+```
+
+# Exploratory Data Analysis
+
+## Univariate Analysis
+```{python}
+# plot histogram for numerical data
+diamonds.hist(figsize=(20, 10))
+plt.show()
+```
+
+## Bivariate Analysis
+```{python}
+# plot scatter plot for numerical data
+sns.pairplot(diamonds)
+plt.show()
+``` 
+
+## Multivariate Analysis
+```{python}
+# plot scatter plot for numerical data
+sns.heatmap(diamonds.corr(), annot=True)
+plt.show()
+```
+
+# Data Preprocessing
+
+## Drop Unnecessary Columns
+```{python}
+# drop unnecessary columns
+diamonds.drop(columns=['x', 'y', 'z'], inplace=True)
+```
+
+## Drop Missing Values  
+```{python}
+# drop missing values
+diamonds.dropna(inplace=True)
+```
+
+## Drop Duplicates
+```{python}
+# drop duplicates
+diamonds.drop_duplicates(inplace=True)    
+```
+
+## Check for Categorical Data
+```{python}
+# check for categorical data
+diamonds.select_dtypes(include=['object']).columns
+``` 
+
+## Check for Numerical Data
+```{python}
+# check for numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).columns
+```
+
+## Check for Missing Values in Numerical Data
+```{python}
+# check for missing values in numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).isnull().sum()
+```
+
+## Check for Missing Values in Categorical Data
+```{python}
+# check for missing values in categorical data    
+diamonds.select_dtypes(include=['object']).isnull().sum()
+```
+
+## Fill Missing Values in Numerical Data
+```{python}
+# fill missing values in numerical data
+diamonds['carat'].fillna(diamonds['carat'].mean(), inplace=True)
+```
+
+## Fill Missing Values in Categorical Data
+```{python}
+# fill missing values in categorical data
+diamonds['cut'].fillna(diamonds['cut'].mode()[0], inplace=True) 
+diamonds['color'].fillna(diamonds['color'].mode()[0], inplace=True)
+diamonds['clarity'].fillna(diamonds['clarity'].mode()[0], inplace=True)
+```
+
+## Check for Categorical Data
+```{python}
+# check for categorical data
+diamonds.select_dtypes(include=['object']).columns
+```
+
+## Check for Numerical Data
+```{python}
+# check for numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).columns
+```
+
+## Check for Missing Values in Numerical Data
+```{python}
+# check for missing values in numerical data   
+diamonds.select_dtypes(include=['int64', 'float64']).isnull().sum()
+```
+
+## Check for Missing Values in Categorical Data
+```{python}
+# check for missing values in categorical data    
+diamonds.select_dtypes(include=['object']).isnull().sum()
+```
+
+## Encode Categorical Data
+```{python}
+# encode categorical data
+diamonds['cut'] = diamonds['cut'].astype('category')
+diamonds['color'] = diamonds['color'].astype('category')
+diamonds['clarity'] = diamonds['clarity'].astype('category')
+```
+
+## Check for Categorical Data
+```{python} 
+# check for categorical data
+diamonds.select_dtypes(include=['object']).columns
+```
+
+## Check for Numerical Data
+```{python}
+# check for numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).columns
+``` 
+
+## Check for Missing Values in Numerical Data
+```{python}
+# check for missing values in numerical data
+diamonds.select_dtypes(include=['int64', 'float64']).isnull().sum()
+```
+
+## Check for Missing Values in Categorical Data
+```{python}
+# check for missing values in categorical data    
+diamonds.select_dtypes(include=['object']).isnull().sum()
+```
+
+## Split Data into Train and Test Sets
+```{python}
+# split data into train and test sets
+X = diamonds.drop(columns=['price'])
+y = diamonds['price']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+## Standardize Numerical Data
+```{python}
+# standardize numerical data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+```
+  
+## Train Linear Regression Model
+```{python}
+# train linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+```
+
+## Evaluate Linear Regression Model
+
+```{python}
+# evaluate linear regression model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train Ridge Regression Model
+```{python}
+# train ridge regression model
+model = Ridge(alpha=0.1)
+model.fit(X_train, y_train)
+```
+
+## Evaluate Ridge Regression Model
+
+```{python}
+# evaluate ridge regression model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train Lasso Regression Model
+```{python}
+# train lasso regression model
+model = Lasso(alpha=0.1)
+model.fit(X_train, y_train)
+```
+
+## Evaluate Lasso Regression Model
+
+```{python}
+# evaluate lasso regression model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train ElasticNet Regression Model
+```{python}
+# train elasticnet regression model
+model = ElasticNet(alpha=0.1, l1_ratio=0.5)
+model.fit(X_train, y_train)
+```
+
+## Evaluate ElasticNet Regression Model
+
+```{python}
+# evaluate elasticnet regression model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train RandomForestRegressor Model
+```{python}
+# train randomforestregressor model
+model = RandomForestRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate RandomForestRegressor Model
+
+```{python}
+# evaluate randomforestregressor model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train LightGBM Model
+```{python}
+# train lightgbm model
+model = lgb.LGBMRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate LightGBM Model
+
+```{python}
+# evaluate lightgbm model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train XGBoost Model
+```{python}
+# train xgboost model
+model = xgb.XGBRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate XGBoost Model
+
+```{python}
+# evaluate xgboost model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train CatBoost Model
+```{python}
+# train catboost model
+model = cbt.CatBoostRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate CatBoost Model
+
+```{python}
+# evaluate catboost model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train LightGBM Model
+
+```{python}
+# train lightgbm model
+model = lgb.LGBMRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate LightGBM Model
+
+```{python}
+# evaluate lightgbm model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+## Train RandomForestRegressor Model
+
+```{python}
+# train randomforestregressor model
+model = RandomForestRegressor(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+```
+
+## Evaluate RandomForestRegressor Model
+
+```{python}
+# evaluate randomforestregressor model
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'Mean Squared Error: {mse}')
+print(f'R2 Score: {r2}')
+print(f'Mean Absolute Error: {mae}')
+```
+
+# Final Plots and Performance Comparison
+
+```{python}
+# plot actual vs predicted prices
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred)
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')  
+plt.title('Actual vs Predicted Prices')
+plt.show()
+
+# plot residuals
+residuals = y_test - y_pred
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, residuals)
+plt.axhline(y=0, color='r', linestyle='--')   
+plt.xlabel('Actual Prices')
+plt.ylabel('Residuals')
+plt.title('Residuals vs Actual Prices')
+plt.show()
+
+# plot predicted vs residuals
+plt.figure(figsize=(10, 6))
+plt.scatter(y_pred, residuals)
+plt.axhline(y=0, color='r', linestyle='--')   
+plt.xlabel('Predicted Prices')
+plt.ylabel('Residuals')
+plt.title('Predicted vs Residuals')
+plt.show()
+```
+
+# Performance Comparison
+
+```{python}
+# create a dataframe to compare the performance of each model
+performance = pd.DataFrame({
+    'Model': ['Linear Regression', 'Ridge Regression', 'Lasso Regression', 'ElasticNet Regression', 'RandomForestRegressor', 'LightGBM', 'XGBoost', 'CatBoost'],
+    'Mean Squared Error': [mse_lr, mse_ridge, mse_lasso, mse_elasticnet, mse_rf, mse_lgbm, mse_xgb, mse_catboost],
+    'R2 Score': [r2_lr, r2_ridge, r2_lasso, r2_elasticnet, r2_rf, r2_lgbm, r2_xgb, r2_catboost],
+    'Mean Absolute Error': [mae_lr, mae_ridge, mae_lasso, mae_elasticnet, mae_rf, mae_lgbm, mae_xgb, mae_catboost]
+})
+
+# display the performance dataframe
+performance
+```
+
+# Conclusion
+
