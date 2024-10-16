@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -37,8 +37,8 @@ np.random.seed(42)
 # | label: data-loading-eda
 
 # Load the data
-train = pd.read_csv('train.csv')
-test = pd.read_csv('test.csv')
+train = pd.read_csv("train.csv")
+test = pd.read_csv("test.csv")
 
 # Display basic information about the dataset
 print(train.info())
@@ -48,9 +48,16 @@ print(train.describe())
 
 # Plot distribution of target variable
 plt.figure(figsize=(10, 6))
-sns.histplot(train['SalePrice'], kde=True)
-plt.title('Distribution of Sale Prices')
+sns.histplot(train["SalePrice"], kde=True)
+plt.title("Distribution of Sale Prices")
 plt.show()
+
+# Box plot of SalePrice
+plt.figure(figsize=(10, 6))
+sns.boxplot(x=train["SalePrice"])
+plt.title("Box Plot of Sale Prices")
+plt.show()
+
 
 # Identify numeric columns
 numeric_columns = train.select_dtypes(include=[np.number]).columns
@@ -58,24 +65,24 @@ numeric_columns = train.select_dtypes(include=[np.number]).columns
 # Correlation matrix of numerical features
 corr_matrix = train[numeric_columns].corr()
 plt.figure(figsize=(12, 10))
-sns.heatmap(corr_matrix, cmap='coolwarm', annot=False)
-plt.title('Correlation Matrix of Numerical Features')
+sns.heatmap(corr_matrix, cmap="coolwarm", annot=False)
+plt.title("Correlation Matrix of Numerical Features")
 plt.show()
 
 # Top 10 features correlated with SalePrice
-top_corr = corr_matrix['SalePrice'].sort_values(ascending=False).head(11)
+top_corr = corr_matrix["SalePrice"].sort_values(ascending=False).head(11)
 plt.figure(figsize=(10, 6))
 sns.barplot(x=top_corr.index[1:], y=top_corr.values[1:])
-plt.title('Top 10 Features Correlated with SalePrice')
-plt.xticks(rotation=45, ha='right')
+plt.title("Top 10 Features Correlated with SalePrice")
+plt.xticks(rotation=45, ha="right")
 plt.tight_layout()
 plt.show()
 
 # Scatter plot of top correlated feature vs SalePrice
 top_feature = top_corr.index[1]
 plt.figure(figsize=(10, 6))
-sns.scatterplot(x=train[top_feature], y=train['SalePrice'])
-plt.title(f'{top_feature} vs SalePrice')
+sns.scatterplot(x=train[top_feature], y=train["SalePrice"])
+plt.title(f"{top_feature} vs SalePrice")
 plt.show()
 ```
 
@@ -88,9 +95,9 @@ def preprocess_data(df):
     # Handle missing values
     for col in df.columns:
         if df[col].dtype != 'object':
-            df[col].fillna(df[col].median(), inplace=True)
+            df[col] = df[col].fillna(df[col].median())
         else:
-            df[col].fillna(df[col].mode()[0], inplace=True)
+            df[col] = df[col].fillna(df[col].mode()[0])
 
     # Encode categorical variables
     le = LabelEncoder()
@@ -106,7 +113,7 @@ y = np.log1p(train['SalePrice'])  # Log transform the target variable
 test_processed = preprocess_data(test)
 
 # Apply StandardScaler
-scaler = StandardScaler()
+scaler = StandardScaler() # To standardize
 X_scaled = scaler.fit_transform(X)
 test_processed_scaled = scaler.transform(test_processed)
 
@@ -161,7 +168,8 @@ linear_results = {}
 for name, model in linear_models.items():
     linear_results[name] = train_and_evaluate(
         model, X_scaled, y, test_processed_scaled, name)
-
+# Lasso looks weird
+# ElasticNet looks weird
 # Advanced models
 rf_model = RandomForestRegressor(random_state=42)
 rf_trained, rf_results = train_and_evaluate(
@@ -245,9 +253,16 @@ plot_feature_importance(cbt_trained, X, "CatBoost")
 ```{python}
 # | label: hyperparameter-tuning
 
+
 def tune_hyperparameters(model, param_grid, X, y, model_name):
-    grid_search = GridSearchCV(estimator=model, param_grid=param_grid,
-                               cv=5, scoring='neg_mean_squared_error', verbose=1, n_jobs=-1)
+    grid_search = GridSearchCV(
+        estimator=model,
+        param_grid=param_grid,
+        cv=5,
+        scoring="neg_mean_squared_error",
+        verbose=1,
+        n_jobs=-1,
+    )
     grid_search.fit(X, y)
 
     print(f"Best parameters for {model_name}:")
@@ -260,39 +275,47 @@ def tune_hyperparameters(model, param_grid, X, y, model_name):
 
 # Random Forest hyperparameter tuning
 rf_param_grid = {
-    'n_estimators': [100, 200],
-    'max_depth': [None, 10],
-    'min_samples_split': [2, 5]
+    "n_estimators": [100, 200],
+    "max_depth": [None, 10],
+    "min_samples_split": [2, 5],
 }
-rf_tuned = tune_hyperparameters(RandomForestRegressor(
-    random_state=42), rf_param_grid, X, y, "Random Forest")
+rf_tuned = tune_hyperparameters(
+    RandomForestRegressor(random_state=42), rf_param_grid, X, y, "Random Forest"
+)
 
 # LightGBM hyperparameter tuning
 lgb_param_grid = {
-    'num_leaves': [31, 127],
-    'learning_rate': [0.01, 0.1],
-    'n_estimators': [100, 200]
+    "num_leaves": [31, 127],
+    "learning_rate": [0.01, 0.1],
+    "n_estimators": [100, 200],
 }
-lgb_tuned = tune_hyperparameters(lgb.LGBMRegressor(
-    random_state=42), lgb_param_grid, X, y, "LightGBM")
+lgb_tuned = tune_hyperparameters(
+    lgb.LGBMRegressor(random_state=42), lgb_param_grid, X, y, "LightGBM"
+)
 
 # XGBoost hyperparameter tuning
 xgb_param_grid = {
-    'max_depth': [3, 6],
-    'learning_rate': [0.01, 0.1],
-    'n_estimators': [100, 200]
+    "max_depth": [3, 6],
+    "learning_rate": [0.01, 0.1],
+    "n_estimators": [100, 200],
 }
-xgb_tuned = tune_hyperparameters(xgb.XGBRegressor(
-    random_state=42), xgb_param_grid, X, y, "XGBoost")
+xgb_tuned = tune_hyperparameters(
+    xgb.XGBRegressor(random_state=42), xgb_param_grid, X, y, "XGBoost"
+)
 
 # CatBoost hyperparameter tuning
 cbt_param_grid = {
-    'depth': [6, 8],
-    'learning_rate': [0.01, 0.1],
-    'iterations': [100, 200]
+    "depth": [6, 8],
+    "learning_rate": [0.01, 0.1],
+    "iterations": [100, 200],
 }
-cbt_tuned = tune_hyperparameters(cbt.CatBoostRegressor(
-    random_state=42, verbose=False), cbt_param_grid, X, y, "CatBoost")
+cbt_tuned = tune_hyperparameters(
+    cbt.CatBoostRegressor(random_state=42, verbose=False),
+    cbt_param_grid,
+    X,
+    y,
+    "CatBoost",
+)
 ```
 
 ## Final Model Evaluation
@@ -302,13 +325,17 @@ cbt_tuned = tune_hyperparameters(cbt.CatBoostRegressor(
 
 print("Final Model Evaluation:")
 rf_final, rf_final_results = train_and_evaluate(
-    rf_tuned, X, y, test_processed, "Random Forest (Tuned)")
+    rf_tuned, X, y, test_processed, "Random Forest (Tuned)"
+)
 lgb_final, lgb_final_results = train_and_evaluate(
-    lgb_tuned, X, y, test_processed, "LightGBM (Tuned)")
+    lgb_tuned, X, y, test_processed, "LightGBM (Tuned)"
+)
 xgb_final, xgb_final_results = train_and_evaluate(
-    xgb_tuned, X, y, test_processed, "XGBoost (Tuned)")
+    xgb_tuned, X, y, test_processed, "XGBoost (Tuned)"
+)
 cbt_final, cbt_final_results = train_and_evaluate(
-    cbt_tuned, X, y, test_processed, "CatBoost (Tuned)")
+    cbt_tuned, X, y, test_processed, "CatBoost (Tuned)"
+)
 
 # Plot final model performances
 plot_actual_vs_predicted(rf_final_results, "Random Forest (Tuned)")
@@ -356,7 +383,7 @@ test_predictions = make_predictions(rf_final, test_processed)
 submission = pd.DataFrame(
     {'Id': test['Id'], 'SalePrice': test_predictions})
 submission.to_csv('submission.csv', index=False)
-print(submission.head())
+
 ```
 
 ## Conclusion
