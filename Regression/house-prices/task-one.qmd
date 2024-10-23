@@ -1,7 +1,7 @@
 ---
 title: "House Prices Regression Task"
 format:
-  pdf:
+   pdf:
     toc: true
     colorlinks: true
 jupyter: python3
@@ -9,18 +9,13 @@ author: "Matthew Loh"
 ---
 
 ```{python}
-# | label: imports
-# | code-fold: true
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
-from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import (
     mean_squared_error,
     mean_absolute_error,
@@ -39,7 +34,6 @@ np.random.seed(42)
 ## Data Loading and Exploratory Data Analysis
 
 ```{python}
-# | label: data-loading-eda
 
 # Load the data
 train = pd.read_csv("train.csv")
@@ -57,10 +51,18 @@ sns.histplot(train["SalePrice"], kde=True)
 plt.title("Distribution of Sale Prices")
 plt.show()
 
-# Box plot of SalePrice
+# Scatter plot of GrLivArea vs SalePrice
 plt.figure(figsize=(10, 6))
-sns.boxplot(x=train["SalePrice"])
-plt.title("Box Plot of Sale Prices")
+plt.scatter(train["GrLivArea"], train["SalePrice"], alpha=0.5)
+plt.title("GrLivArea vs SalePrice")
+plt.xlabel("GrLivArea (Above ground living area)")
+plt.ylabel("SalePrice")
+plt.show()
+
+# Box plot of SalePrice by OverallQual
+plt.figure(figsize=(12, 6))
+sns.boxplot(x="OverallQual", y="SalePrice", data=train)
+plt.title("SalePrice by Overall Quality")
 plt.show()
 
 
@@ -94,7 +96,6 @@ plt.show()
 ## Data Preprocessing
 
 ```{python}
-# | label: data-preprocessing
 
 
 def preprocess_data(df):
@@ -115,11 +116,12 @@ def preprocess_data(df):
 
 # Preprocess train and test data
 X = preprocess_data(train.drop("SalePrice", axis=1))
-y = np.log1p(train["SalePrice"])  # Log transform the target variable
+y = np.log1p(
+    train["SalePrice"]
+)  # Log transform the target variable to handle skewed distribution
 test_processed = preprocess_data(test)
 
-# Apply StandardScaler
-scaler = StandardScaler()  # To standardize
+scaler = StandardScaler()  # To standardize the features
 X_scaled = scaler.fit_transform(X)
 test_processed_scaled = scaler.transform(test_processed)
 
@@ -129,7 +131,6 @@ print("Processed data shape:", X.shape)
 ## Model Training and Evaluation
 
 ```{python}
-# | label: model-training-evaluation
 
 
 def train_and_evaluate(model, X, y, test_data, model_name):
@@ -167,8 +168,8 @@ def train_and_evaluate(model, X, y, test_data, model_name):
 # Linear models
 linear_models = {
     "Linear Regression": LinearRegression(),
-    "Ridge": Ridge(),
-    "Lasso": Lasso(),
+    "Ridge": Ridge(),  # also known as L2 regularization
+    "Lasso": Lasso(),  # also known as L1 regularization
     "ElasticNet": ElasticNet(),
 }
 
@@ -204,7 +205,6 @@ cbt_trained, cbt_results = train_and_evaluate(
 ## Model Performance Visualization
 
 ```{python}
-# | label: model-performance-visualization
 
 
 def plot_actual_vs_predicted(results, model_name):
@@ -233,7 +233,6 @@ plot_actual_vs_predicted(cbt_results, "CatBoost")
 ## Feature Importance
 
 ```{python}
-# | label: feature-importance
 
 
 def plot_feature_importance(model, X, model_name):
@@ -264,7 +263,6 @@ plot_feature_importance(cbt_trained, X, "CatBoost")
 ## Hyperparameter Tuning
 
 ```{python}
-# | label: hyperparameter-tuning
 
 
 def tune_hyperparameters(model, param_grid, X, y, model_name):
@@ -301,6 +299,7 @@ lgb_param_grid = {
     "num_leaves": [31, 127],
     "learning_rate": [0.01, 0.1],
     "n_estimators": [100, 200],
+    "verbosity": [-1],
 }
 lgb_tuned = tune_hyperparameters(
     lgb.LGBMRegressor(random_state=42), lgb_param_grid, X, y, "LightGBM"
@@ -334,7 +333,6 @@ cbt_tuned = tune_hyperparameters(
 ## Final Model Evaluation
 
 ```{python}
-# | label: final-model-evaluation
 
 print("Final Model Evaluation:")
 rf_final, rf_final_results = train_and_evaluate(
@@ -357,46 +355,228 @@ plot_actual_vs_predicted(xgb_final_results, "XGBoost (Tuned)")
 plot_actual_vs_predicted(cbt_final_results, "CatBoost (Tuned)")
 ```
 
+## Actual vs Predicted Price Comparison
+
+```{python}
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score
+
+
+def plot_actual_vs_predicted_all_models(models_results, figsize=(20, 15)):
+    n_models = len(models_results)
+    fig, axes = plt.subplots(nrows=(n_models + 1) // 2, ncols=2, figsize=figsize)
+    axes = axes.flatten()
+
+    for i, (model_name, results) in enumerate(models_results.items()):
+        y_true, y_pred = results
+
+        # Convert from log scale back to original scale
+        y_true_orig = np.expm1(y_true)
+        y_pred_orig = np.expm1(y_pred)
+
+        ax = axes[i]
+        ax.scatter(y_true_orig, y_pred_orig, alpha=0.5)
+        ax.plot(
+            [y_true_orig.min(), y_true_orig.max()],
+            [y_true_orig.min(), y_true_orig.max()],
+            "r--",
+            lw=2,
+        )
+
+        ax.set_xlabel("Actual Price")
+        ax.set_ylabel("Predicted Price")
+        ax.set_title(f"{model_name}\nR² = {r2_score(y_true_orig, y_pred_orig):.4f}")
+
+        # Set axis limits
+        ax.set_xlim(0, max(y_true_orig.max(), y_pred_orig.max()))
+        ax.set_ylim(0, max(y_true_orig.max(), y_pred_orig.max()))
+
+    # Remove any unused subplots
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    plt.show()
+
+
+# Prepare results for all models
+all_models_results = {
+    "Linear Regression": (y, linear_results["Linear Regression"][0].predict(X_scaled)),
+    "Ridge": (y, linear_results["Ridge"][0].predict(X_scaled)),
+    "Lasso": (y, linear_results["Lasso"][0].predict(X_scaled)),
+    "ElasticNet": (y, linear_results["ElasticNet"][0].predict(X_scaled)),
+    "Random Forest (Tuned)": (y, rf_final.predict(X)),
+    "LightGBM (Tuned)": (y, lgb_final.predict(X)),
+    "XGBoost (Tuned)": (y, xgb_final.predict(X)),
+    "CatBoost (Tuned)": (y, cbt_final.predict(X)),
+}
+
+# Plot actual vs predicted for all models
+plot_actual_vs_predicted_all_models(all_models_results)
+```
+
 ## Predictions on Test Data
 
 ```{python}
-# | label: predictions
-
 def make_predictions(model, test_data):
     predictions = model.predict(test_data)
     return np.expm1(predictions)  # Inverse log transform
 
 
+# Make individual model predictions
 rf_predictions = make_predictions(rf_final, test_processed)
 lgb_predictions = make_predictions(lgb_final, test_processed)
 xgb_predictions = make_predictions(xgb_final, test_processed)
 cbt_predictions = make_predictions(cbt_final, test_processed)
 
 # Ensemble predictions (simple average)
-ensemble_predictions = (rf_predictions + lgb_predictions +
-                        xgb_predictions + cbt_predictions) / 4
+ensemble_predictions = (
+    rf_predictions + lgb_predictions + xgb_predictions + cbt_predictions
+) / 4
 
 # Plot distribution of predictions
 plt.figure(figsize=(12, 6))
-sns.kdeplot(rf_predictions, label='Random Forest')
-sns.kdeplot(lgb_predictions, label='LightGBM')
-sns.kdeplot(xgb_predictions, label='XGBoost')
-sns.kdeplot(cbt_predictions, label='CatBoost')
-sns.kdeplot(ensemble_predictions, label='Ensemble')
-plt.xlabel('Predicted SalePrice')
-plt.ylabel('Density')
-plt.title('Distribution of Predicted Sale Prices')
+sns.kdeplot(rf_predictions, label="Random Forest")
+sns.kdeplot(lgb_predictions, label="LightGBM")
+sns.kdeplot(xgb_predictions, label="XGBoost")
+sns.kdeplot(cbt_predictions, label="CatBoost")
+sns.kdeplot(ensemble_predictions, label="Ensemble")
+plt.xlabel("Predicted SalePrice")
+plt.ylabel("Density")
+plt.title("Distribution of Predicted Sale Prices")
 plt.legend()
 plt.show()
 
-# Make predictions on the test data
-test_predictions = make_predictions(rf_final, test_processed)
+# Create submission file using the ensemble predictions
+submission_ensemble = pd.DataFrame(
+    {"Id": test["Id"], "SalePrice": ensemble_predictions}
+)
+submission_ensemble.to_csv("submission_ensemble.csv", index=False)
 
-# Create submission file
-submission = pd.DataFrame(
-    {'Id': test['Id'], 'SalePrice': test_predictions})
-submission.to_csv('submission.csv', index=False)
+print("Submission file created successfully.")
+submission_ensemble.head()
 
+submission_rf = pd.DataFrame({"Id": test["Id"], "SalePrice": rf_predictions})
+submission_rf.to_csv("submission_rf.csv", index=False)
+submission_rf.head()
+
+submission_lgb = pd.DataFrame({"Id": test["Id"], "SalePrice": lgb_predictions})
+submission_lgb.to_csv("submission_lgb.csv", index=False)
+submission_lgb.head()
+
+submission_xgb = pd.DataFrame({"Id": test["Id"], "SalePrice": xgb_predictions})
+submission_xgb.to_csv("submission_xgb.csv", index=False)
+submission_xgb.head()
+
+submission_cbt = pd.DataFrame({"Id": test["Id"], "SalePrice": cbt_predictions})
+submission_cbt.to_csv("submission_cbt.csv", index=False)
+submission_cbt.head()
+
+
+
+```
+
+## Model Comparison and Best Model Selection
+
+```{python}
+# | label: model-comparison
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+
+def evaluate_model(y_true, y_pred, model_name):
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    return {"Model": model_name, "RMSE": rmse, "MAE": mae, "R2": r2}
+
+
+# Prepare results for all models
+model_results = []
+for model_name, (y_true, y_pred) in all_models_results.items():
+    model_results.append(evaluate_model(np.expm1(y_true), np.expm1(y_pred), model_name))
+
+# Convert results to DataFrame for easy comparison
+results_df = pd.DataFrame(model_results)
+results_df = results_df.sort_values("RMSE")
+
+print("Model Performance Comparison:")
+print(results_df)
+
+# Identify the best model based on RMSE
+best_model = results_df.iloc[0]
+print("\nBest Performing Model:")
+print(f"Model: {best_model['Model']}")
+print(f"RMSE: {best_model['RMSE']:.4f}")
+print(f"MAE: {best_model['MAE']:.4f}")
+print(f"R2 Score: {best_model['R2']:.4f}")
+
+# Visualize model performance comparison
+plt.figure(figsize=(12, 6))
+sns.barplot(x="Model", y="RMSE", data=results_df)
+plt.title("Model Performance Comparison (RMSE)")
+plt.xticks(rotation=45, ha="right")
+plt.tight_layout()
+plt.show()
+
+# Feature importance of the best model
+best_model_name = best_model["Model"]
+if best_model_name in [
+    "Random Forest (Tuned)",
+    "LightGBM (Tuned)",
+    "XGBoost (Tuned)",
+    "CatBoost (Tuned)",
+]:
+    model_name_map = {
+        "Random Forest (Tuned)": rf_final,
+        "LightGBM (Tuned)": lgb_final,
+        "XGBoost (Tuned)": xgb_final,
+        "CatBoost (Tuned)": cbt_final,
+    }
+    best_model_object = model_name_map[best_model_name]
+    plot_feature_importance(best_model_object, X, best_model_name)
+else:
+    print(f"Feature importance not available for {best_model_name}")
+
+# Residual analysis for the best model
+y_true = np.expm1(y)
+y_pred = np.expm1(all_models_results[best_model_name][1])
+residuals = y_true - y_pred
+
+plt.figure(figsize=(12, 6))
+plt.scatter(y_pred, residuals, alpha=0.5)
+plt.xlabel("Predicted Price")
+plt.ylabel("Residuals")
+plt.title(f"Residual Plot for {best_model_name}")
+plt.axhline(y=0, color="r", linestyle="--")
+plt.tight_layout()
+plt.show()
+
+# Distribution of residuals
+plt.figure(figsize=(12, 6))
+sns.histplot(residuals, kde=True)
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.title(f"Distribution of Residuals for {best_model_name}")
+plt.tight_layout()
+plt.show()
+
+print("\nModel Analytics:")
+print(f"1. The best performing model is {best_model_name} based on RMSE.")
+print(
+    f"2. This model explains {best_model['R2']:.2%} of the variance in the target variable."
+)
+print(
+    f"3. On average, this model's predictions deviate from the actual prices by ${best_model['MAE']:.2f}."
+)
+print(
+    "4. The residual plot and distribution can help identify any patterns in the model's errors."
+)
+print(
+    "5. Feature importance plot shows which features are most influential in the model's predictions."
+)
 ```
 
 ## Conclusion
@@ -404,11 +584,11 @@ submission.to_csv('submission.csv', index=False)
 This notebook implements a comprehensive approach to the House Prices regression task, including:
 
 1. Exploratory Data Analysis (EDA) to understand the dataset
-2. Data preprocessing, including handling missing values and encoding categorical variables
-3. Implementation of both basic (linear) and advanced (tree-based) regression models
-4. Visualization of model performance and feature importance
-5. Hyperparameter tuning to optimize model performance
-6. Final model evaluation and ensemble prediction
+2. Data preprocessing, including handling missing values and encoding categorical variables by using LabelEncoder
+3. Implementation of both basic (linear) and advanced (tree-based) regression models like LinearRegression, Ridge, Lasso, ElasticNet, RandomForestRegressor, LightGBM, XGBoost, and CatBoost
+4. Visualization of model performance and feature importance using scatter plots and heatmaps
+5. Hyperparameter tuning to optimize model performance using GridSearchCV
+6. Final model evaluation and ensemble prediction using the average of all models
 
 Key observations:
 1. The log transformation of the target variable (SalePrice) helped to handle its skewed distribution.
@@ -422,3 +602,6 @@ Areas for further improvement:
 2. Experimenting with more advanced ensemble methods, such as stacking.
 3. Deeper analysis of residuals to identify patterns in prediction errors and potential outliers.
 4. Consideration of model interpretability for stakeholder communication.
+5. Using more advanced preprocessing techniques like OneHotEncoder for categorical variables.
+6. Using SHAP values to explain the predictions of the final model.
+7. Using Bayesian Optimization to tune hyperparameters.
