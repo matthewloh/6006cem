@@ -8,6 +8,7 @@ jupyter: python3
 author: "Matthew Loh"
 ---
 
+# Dataset Source : https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data
 ```{python}
 
 import pandas as pd
@@ -54,6 +55,12 @@ plt.show()
 # Scatter plot of GrLivArea vs SalePrice
 plt.figure(figsize=(10, 6))
 plt.scatter(train["GrLivArea"], train["SalePrice"], alpha=0.5)
+
+# Add regression line
+z = np.polyfit(train["GrLivArea"], train["SalePrice"], 1)
+p = np.poly1d(z)
+plt.plot(train["GrLivArea"], p(train["GrLivArea"]), "r--", alpha=0.8)
+
 plt.title("GrLivArea vs SalePrice")
 plt.xlabel("GrLivArea (Above ground living area)")
 plt.ylabel("SalePrice")
@@ -96,8 +103,6 @@ plt.show()
 ## Data Preprocessing
 
 ```{python}
-
-
 def preprocess_data(df):
     # Handle missing values
     for col in df.columns:
@@ -113,26 +118,21 @@ def preprocess_data(df):
 
     return df
 
-
 # Preprocess train and test data
 X = preprocess_data(train.drop("SalePrice", axis=1))
 y = np.log1p(
     train["SalePrice"]
 )  # Log transform the target variable to handle skewed distribution
 test_processed = preprocess_data(test)
-
 scaler = StandardScaler()  # To standardize the features
 X_scaled = scaler.fit_transform(X)
 test_processed_scaled = scaler.transform(test_processed)
-
 print("Processed data shape:", X.shape)
 ```
 
 ## Model Training and Evaluation
 
 ```{python}
-
-
 def train_and_evaluate(model, X, y, test_data, model_name):
     X_train, X_val, y_train, y_val = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -169,8 +169,8 @@ def train_and_evaluate(model, X, y, test_data, model_name):
 linear_models = {
     "Linear Regression": LinearRegression(),
     "Ridge": Ridge(),  # also known as L2 regularization
-    "Lasso": Lasso(),  # also known as L1 regularization
-    "ElasticNet": ElasticNet(),
+    "Lasso": Lasso(alpha=0.001),  # also known as L1 regularization
+    "ElasticNet": ElasticNet(alpha=0.001, l1_ratio=0.5),
 }
 
 linear_results = {}
@@ -291,7 +291,8 @@ rf_param_grid = {
     "min_samples_split": [2, 5],
 }
 rf_tuned = tune_hyperparameters(
-    RandomForestRegressor(random_state=42), rf_param_grid, X, y, "Random Forest"
+    RandomForestRegressor(
+        random_state=42), rf_param_grid, X, y, "Random Forest"
 )
 
 # LightGBM hyperparameter tuning
@@ -365,7 +366,8 @@ from sklearn.metrics import r2_score
 
 def plot_actual_vs_predicted_all_models(models_results, figsize=(20, 15)):
     n_models = len(models_results)
-    fig, axes = plt.subplots(nrows=(n_models + 1) // 2, ncols=2, figsize=figsize)
+    fig, axes = plt.subplots(nrows=(n_models + 1) //
+                             2, ncols=2, figsize=figsize)
     axes = axes.flatten()
 
     for i, (model_name, results) in enumerate(models_results.items()):
@@ -386,7 +388,8 @@ def plot_actual_vs_predicted_all_models(models_results, figsize=(20, 15)):
 
         ax.set_xlabel("Actual Price")
         ax.set_ylabel("Predicted Price")
-        ax.set_title(f"{model_name}\nR² = {r2_score(y_true_orig, y_pred_orig):.4f}")
+        ax.set_title(f"{model_name}\nR² = {
+                     r2_score(y_true_orig, y_pred_orig):.4f}")
 
         # Set axis limits
         ax.set_xlim(0, max(y_true_orig.max(), y_pred_orig.max()))
